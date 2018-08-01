@@ -69,10 +69,10 @@ public class KafkaRunner implements Runnable {
 			System.out.println("\nLoaded Consumer Configurations:-\n"
 					+ configProperties.getKafkaConsumerProperties());
 			
-			RosettaConsumerGenerator rosettaConsumerGenerator = new RosettaGeneratorBuilder()
+			KafkaConsumerGenerator kafkaConsumerGenerator = new KafkaGeneratorBuilder()
 					.configProperty(configProperties).buildConsumer();
 			
-			rosettaConsumerGenerator.run();
+			kafkaConsumerGenerator.run();
 		}
 
 		if(cmdArgs[0].equalsIgnoreCase("producer")) {
@@ -95,10 +95,10 @@ public class KafkaRunner implements Runnable {
 					+ configProperties.getKafkaProducerProperties());
 			
 			
-			RosettaProducerGenerator rosettaProducerGenerator = new RosettaGeneratorBuilder()
+			KafkaProducerGenerator kafkaProducerGenerator = new KafkaGeneratorBuilder()
 					.configProperty(configProperties).buildProducer();
 			
-			rosettaProducerGenerator.run();
+			kafkaProducerGenerator.run();
 		}
 
 

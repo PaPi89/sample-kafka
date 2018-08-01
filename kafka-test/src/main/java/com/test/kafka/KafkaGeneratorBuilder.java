@@ -12,11 +12,11 @@ public class KafkaGeneratorBuilder {
 		return this;
 	}
 
-	public RosettaConsumerGenerator buildConsumer() {
-		return new RosettaConsumerGenerator(configProperties);
+	public KafkaConsumerGenerator buildConsumer() {
+		return new KafkaConsumerGenerator(configProperties);
 	}
 	
-	public RosettaProducerGenerator buildProducer() {
-		return new RosettaProducerGenerator(configProperties);
+	public kafkaProducerGenerator buildProducer() {
+		return new KafkaProducerGenerator(configProperties);
 	}
 }
