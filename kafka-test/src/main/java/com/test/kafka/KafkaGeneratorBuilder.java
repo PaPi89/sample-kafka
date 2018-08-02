@@ -16,7 +16,7 @@ public class KafkaGeneratorBuilder {
 		return new KafkaConsumerGenerator(configProperties);
 	}
 	
-	public kafkaProducerGenerator buildProducer() {
+	public KafkaProducerGenerator buildProducer() {
 		return new KafkaProducerGenerator(configProperties);
 	}
 }
