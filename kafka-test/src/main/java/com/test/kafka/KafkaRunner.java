@@ -1,5 +1,7 @@
 package com.test.kafka;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+
 import com.test.kafka.beans.ConfigProperty;
 import com.test.kafka.common.config.Config;
 import com.test.kafka.common.config.PropertiesConfigLoader;
@@ -12,12 +14,14 @@ public class KafkaRunner implements Runnable {
 
 	private static final String KAFKA_TOPIC = "kafka.topic";
 
+	private static final String KAFKA_PUBLISH_TOPIC = "kafka.publish.topic";
+
 	private static final String KAFKA_CONSUMER_FILE = "kafka.consumerFilePath";
 
 	private static final String KAFKA_PRODUCER_FILE = "kafka.producerFilePath";
-	
+
 	private String[] cmdArgs;
-	
+
 	public KafkaRunner(String[] args) {
 		this.cmdArgs = args;
 	}
@@ -48,59 +52,68 @@ public class KafkaRunner implements Runnable {
 		System.out.println("Loaded Configuration:- " + config.toString());
 
 		configProperties.setKafkaTopic(config.getString(KAFKA_TOPIC));
-		
-		if(cmdArgs[0].equalsIgnoreCase("consumer")) {
-			
+
+		if (cmdArgs[0].equalsIgnoreCase("consumer")) {
+
 			System.out.println("Loading Consumer Config...");
-			
+
 			try {
+
+				configProperties.setKafkaPubTopic(
+						config.getString(KAFKA_PUBLISH_TOPIC));
 				
 				configProperties
-				.setKafkaConsumerProperties(new PropertiesConfigLoader()
-						.resource(config.getString(KAFKA_CONSUMER_FILE),
-								KafkaRunner.class.getClassLoader())
-						.load());
+						.setKafkaConsumerProperties(new PropertiesConfigLoader()
+								.resource(config.getString(KAFKA_CONSUMER_FILE),
+										KafkaRunner.class.getClassLoader())
+								.load());
+				configProperties
+						.setKafkaProducerProperties(new PropertiesConfigLoader()
+								.resource(config.getString(KAFKA_PRODUCER_FILE),
+										KafkaRunner.class.getClassLoader())
+								.load());
 			}
 			catch (Exception e) {
 				e.printStackTrace();
 				return;
 			}
-			
+
+			configProperties.getKafkaConsumerProperties().setProperty(
+					ConsumerConfig.MAX_POLL_RECORDS_CONFIG.toString(), "10");
+
 			System.out.println("\nLoaded Consumer Configurations:-\n"
 					+ configProperties.getKafkaConsumerProperties());
-			
+
 			KafkaConsumerGenerator kafkaConsumerGenerator = new KafkaGeneratorBuilder()
 					.configProperty(configProperties).buildConsumer();
-			
+
 			kafkaConsumerGenerator.run();
 		}
 
-		if(cmdArgs[0].equalsIgnoreCase("producer")) {
-			
+		if (cmdArgs[0].equalsIgnoreCase("producer")) {
+
 			System.out.println("\nLoading Producer Config...");
-			
+
 			try {
 				configProperties
-				.setKafkaProducerProperties(new PropertiesConfigLoader()
-						.resource(config.getString(KAFKA_PRODUCER_FILE),
-								KafkaRunner.class.getClassLoader())
-						.load());
+						.setKafkaProducerProperties(new PropertiesConfigLoader()
+								.resource(config.getString(KAFKA_PRODUCER_FILE),
+										KafkaRunner.class.getClassLoader())
+								.load());
 			}
 			catch (Exception e) {
 				e.printStackTrace();
 				return;
 			}
-			
+
 			System.out.println("\nLoaded Producer Configurations:-\n"
 					+ configProperties.getKafkaProducerProperties());
-			
-			
+
 			KafkaProducerGenerator kafkaProducerGenerator = new KafkaGeneratorBuilder()
 					.configProperty(configProperties).buildProducer();
-			
+
 			kafkaProducerGenerator.run();
 		}
-
 
 	}
 
