@@ -79,7 +79,7 @@ public class KafkaRunner implements Runnable {
 			}
 
 			configProperties.getKafkaConsumerProperties().setProperty(
-					ConsumerConfig.MAX_POLL_RECORDS_CONFIG.toString(), "10");
+					ConsumerConfig.MAX_POLL_RECORDS_CONFIG.toString(), "1");
 
 			System.out.println("\nLoaded Consumer Configurations:-\n"
 					+ configProperties.getKafkaConsumerProperties());

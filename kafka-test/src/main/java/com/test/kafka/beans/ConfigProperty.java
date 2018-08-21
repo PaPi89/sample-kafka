@@ -1,8 +1,7 @@
 package com.test.kafka.beans;
 
 import java.util.Properties;
-
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ConfigProperty {
 

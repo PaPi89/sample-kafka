@@ -24,6 +24,8 @@ public class KafkaConsumerGenerator implements Runnable {
 	private KafkaProducer<String, String> producer;
 	
 	private RecoveryService recoveryService;
+	
+	private boolean result;
 
 	public KafkaConsumerGenerator(ConfigProperty configProperties) {
 		this.configProperties = configProperties;
@@ -31,13 +33,19 @@ public class KafkaConsumerGenerator implements Runnable {
 				configProperties.getKafkaConsumerProperties());
 		this.producer = new  KafkaProducer<>(
 				configProperties.getKafkaProducerProperties());
-		this.consumer
-				.subscribe(Arrays.asList(configProperties.getKafkaTopic()), consumerRebalanceListener);
+		/*this.consumer
+				.subscribe(Arrays.asList(configProperties.getKafkaTopic()), consumerRebalanceListener);*/
+		TopicPartition tp = new TopicPartition(configProperties.getKafkaTopic(), 0);
+		this.consumer.assign(Arrays.asList(tp));
 		this.recoveryService = new RecoveryService(configProperties);
 	}
 
 	public void run() {
 		try {
+			result = recoveryService.recover();
+			if(result) {
+				consumer = recoveryService.recover(consumer);
+			}
 			receiveMessage();
 		}
 		catch (InterruptedException e) {
@@ -55,23 +63,29 @@ public class KafkaConsumerGenerator implements Runnable {
 			ConsumerRecords<String, String> records = consumer.poll(
 					Duration.ofMillis(configProperties.getKafkaPollInterval()));
 			
-				
-				if (records.count() == 0) {
-					timeouts++;
-				}
-				else {
-					System.out.printf("Got %d records after %d timeouts\n",
-							records.count(), timeouts);
-					timeouts = 0;
-				}
-				for (ConsumerRecord<String, String> record : records) {
-					System.out.println(record.value());
+				if(result) {
+					
+					if (records.count() == 0) {
+						timeouts++;
+					}
+					else {
+						System.out.printf("Got %d records after %d timeouts\n",
+								records.count(), timeouts);
+						timeouts = 0;
+					}
+					for (ConsumerRecord<String, String> record : records) {
+						System.out.println(record.value() + "offset:- " + record.offset());
+						producer.send(new ProducerRecord<String, String>(
+								configProperties.getKafkaPubTopic(),
+								record.value() + "offset"+ record.offset()));
+						producer.flush();
+					}
 					producer.send(new ProducerRecord<String, String>(
 							configProperties.getKafkaPubTopic(),
-							record.value()));
+							"HEARTBEAT"));
 					producer.flush();
+					Thread.sleep(5000);
 				}
-				Thread.sleep(5000);
 		}
 	}
 
