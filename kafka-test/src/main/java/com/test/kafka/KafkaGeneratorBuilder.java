@@ -5,10 +5,17 @@ import com.test.kafka.beans.ConfigProperty;
 public class KafkaGeneratorBuilder {
 
 	private ConfigProperty configProperties;
+	
+	private String topic;
 
 	public KafkaGeneratorBuilder configProperty(
 			ConfigProperty configProperties) {
 		this.configProperties = configProperties;
+		return this;
+	}
+	
+	public KafkaGeneratorBuilder topic(String topic) {
+		this.topic = topic;
 		return this;
 	}
 
@@ -17,6 +24,6 @@ public class KafkaGeneratorBuilder {
 	}
 	
 	public KafkaProducerGenerator buildProducer() {
-		return new KafkaProducerGenerator(configProperties);
+		return new KafkaProducerGenerator(configProperties, topic);
 	}
 }

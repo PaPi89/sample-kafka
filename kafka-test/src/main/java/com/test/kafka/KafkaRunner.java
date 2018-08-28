@@ -2,9 +2,15 @@ package com.test.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
+import com.lmax.disruptor.dsl.Disruptor;
+import com.lmax.disruptor.util.DaemonThreadFactory;
+import com.test.disruptor.event.PublishKafkaTopicEvent;
+import com.test.disruptor.event.ReadKafkaTopicEvent;
 import com.test.kafka.beans.ConfigProperty;
 import com.test.kafka.common.config.Config;
 import com.test.kafka.common.config.PropertiesConfigLoader;
+import com.test.kafka.message.processor.MessageProcessor;
+import com.test.kafka.message.publisher.MessagePublisher;
 
 public class KafkaRunner implements Runnable {
 
@@ -52,6 +58,7 @@ public class KafkaRunner implements Runnable {
 		System.out.println("Loaded Configuration:- " + config.toString());
 
 		configProperties.setKafkaTopic(config.getString(KAFKA_TOPIC));
+		configProperties.setKafkaPubTopic(config.getString(KAFKA_PUBLISH_TOPIC));
 
 		if (cmdArgs[0].equalsIgnoreCase("consumer")) {
 
@@ -59,19 +66,17 @@ public class KafkaRunner implements Runnable {
 
 			try {
 
-				configProperties.setKafkaPubTopic(
-						config.getString(KAFKA_PUBLISH_TOPIC));
-				
 				configProperties
 						.setKafkaConsumerProperties(new PropertiesConfigLoader()
 								.resource(config.getString(KAFKA_CONSUMER_FILE),
 										KafkaRunner.class.getClassLoader())
 								.load());
+				
 				configProperties
-						.setKafkaProducerProperties(new PropertiesConfigLoader()
-								.resource(config.getString(KAFKA_PRODUCER_FILE),
-										KafkaRunner.class.getClassLoader())
-								.load());
+				.setKafkaProducerProperties(new PropertiesConfigLoader()
+						.resource(config.getString(KAFKA_PRODUCER_FILE),
+								KafkaRunner.class.getClassLoader())
+						.load());
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -79,10 +84,26 @@ public class KafkaRunner implements Runnable {
 			}
 
 			configProperties.getKafkaConsumerProperties().setProperty(
-					ConsumerConfig.MAX_POLL_RECORDS_CONFIG.toString(), "1");
+					ConsumerConfig.MAX_POLL_RECORDS_CONFIG.toString(), "10");
 
 			System.out.println("\nLoaded Consumer Configurations:-\n"
 					+ configProperties.getKafkaConsumerProperties());
+
+			/**
+			 * Disruptor for reading message from kafka and publish it to ring
+			 * buffer
+			 **/
+
+			Disruptor<ReadKafkaTopicEvent> readKafkaTopicDisruptor = new Disruptor<>(
+					ReadKafkaTopicEvent.EVENT_FACTORY, 1024,
+					DaemonThreadFactory.INSTANCE);
+
+
+			readKafkaTopicDisruptor
+					.handleEventsWith(new MessageProcessor(configProperties));
+
+			configProperties.setReadFromkafkaRingBuffer(
+					readKafkaTopicDisruptor.start());
 
 			KafkaConsumerGenerator kafkaConsumerGenerator = new KafkaGeneratorBuilder()
 					.configProperty(configProperties).buildConsumer();
@@ -110,7 +131,8 @@ public class KafkaRunner implements Runnable {
 					+ configProperties.getKafkaProducerProperties());
 
 			KafkaProducerGenerator kafkaProducerGenerator = new KafkaGeneratorBuilder()
-					.configProperty(configProperties).buildProducer();
+					.configProperty(configProperties)
+					.topic(configProperties.getKafkaTopic()).buildProducer();
 
 			kafkaProducerGenerator.run();
 		}

@@ -8,10 +8,10 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 
+import com.lmax.disruptor.RingBuffer;
+import com.test.disruptor.event.ReadKafkaTopicEvent;
 import com.test.kafka.beans.ConfigProperty;
 import com.test.kafka.recovery.RecoveryService;
 
@@ -20,32 +20,28 @@ public class KafkaConsumerGenerator implements Runnable {
 	private ConfigProperty configProperties;
 
 	private KafkaConsumer<String, String> consumer;
-	
-	private KafkaProducer<String, String> producer;
-	
+
 	private RecoveryService recoveryService;
-	
-	private boolean result;
+
+	private RingBuffer<ReadKafkaTopicEvent> ringBuffer;
 
 	public KafkaConsumerGenerator(ConfigProperty configProperties) {
 		this.configProperties = configProperties;
 		this.consumer = new KafkaConsumer<>(
 				configProperties.getKafkaConsumerProperties());
-		this.producer = new  KafkaProducer<>(
-				configProperties.getKafkaProducerProperties());
-		/*this.consumer
-				.subscribe(Arrays.asList(configProperties.getKafkaTopic()), consumerRebalanceListener);*/
-		TopicPartition tp = new TopicPartition(configProperties.getKafkaTopic(), 0);
-		this.consumer.assign(Arrays.asList(tp));
+		this.ringBuffer = configProperties.getReadFromkafkaRingBuffer();
+		this.consumer.subscribe(Arrays.asList(configProperties.getKafkaTopic()),
+				consumerRebalanceListener);
+		/*
+		 * TopicPartition tp = new
+		 * TopicPartition(configProperties.getKafkaTopic(), 0);
+		 * this.consumer.assign(Arrays.asList(tp));
+		 */
 		this.recoveryService = new RecoveryService(configProperties);
 	}
 
 	public void run() {
 		try {
-			result = recoveryService.recover();
-			if(result) {
-				consumer = recoveryService.recover(consumer);
-			}
 			receiveMessage();
 		}
 		catch (InterruptedException e) {
@@ -62,40 +58,41 @@ public class KafkaConsumerGenerator implements Runnable {
 			// really care.
 			ConsumerRecords<String, String> records = consumer.poll(
 					Duration.ofMillis(configProperties.getKafkaPollInterval()));
-			
-				if(result) {
-					
-					if (records.count() == 0) {
-						timeouts++;
-					}
-					else {
-						System.out.printf("Got %d records after %d timeouts\n",
-								records.count(), timeouts);
-						timeouts = 0;
-					}
-					for (ConsumerRecord<String, String> record : records) {
-						System.out.println(record.value() + "offset:- " + record.offset());
-						producer.send(new ProducerRecord<String, String>(
-								configProperties.getKafkaPubTopic(),
-								record.value() + "offset"+ record.offset()));
-						producer.flush();
-					}
-					producer.send(new ProducerRecord<String, String>(
-							configProperties.getKafkaPubTopic(),
-							"HEARTBEAT"));
-					producer.flush();
-					Thread.sleep(5000);
-				}
+
+			if (records.count() == 0) {
+				timeouts++;
+			}
+			else {
+				System.out.printf("Got %d records after %d timeouts\n",
+						records.count(), timeouts);
+				timeouts = 0;
+			}
+
+			for (ConsumerRecord<String, String> record : records) {
+				//System.out.println(record.value());
+
+				/**
+				 * Disruptor code to read message from kafka and publish it to
+				 * ring buffer.
+				 **/
+				long seq = ringBuffer.next();
+				ReadKafkaTopicEvent readMessageEvent = ringBuffer.get(seq);
+				readMessageEvent.set(record.value());
+				ringBuffer.publish(seq);
+
+			}
+
+			Thread.sleep(5000);
 		}
 	}
 
 	private final ConsumerRebalanceListener consumerRebalanceListener = new ConsumerRebalanceListener() {
-		
+
 		@Override
 		public void onPartitionsRevoked(Collection<TopicPartition> arg0) {
 			System.out.println("Inside onPartitionsRevoked...");
 		}
-		
+
 		@Override
 		public void onPartitionsAssigned(Collection<TopicPartition> arg0) {
 			System.out.println("Inside onPartitionsAssigned...");

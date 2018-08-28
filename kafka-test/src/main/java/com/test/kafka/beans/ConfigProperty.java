@@ -1,7 +1,10 @@
 package com.test.kafka.beans;
 
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
+
+import com.lmax.disruptor.RingBuffer;
+import com.test.disruptor.event.PublishKafkaTopicEvent;
+import com.test.disruptor.event.ReadKafkaTopicEvent;
 
 public class ConfigProperty {
 
@@ -14,6 +17,10 @@ public class ConfigProperty {
 	private String kafkaPubTopic;
 
 	private long kafkaPollInterval;
+	
+	private RingBuffer<ReadKafkaTopicEvent> readFromkafkaRingBuffer;
+	
+	private RingBuffer<PublishKafkaTopicEvent> publishMessageRingBuffer;
 	
 	public Properties getKafkaConsumerProperties() {
 		return kafkaConsumerProperties;
@@ -53,6 +60,24 @@ public class ConfigProperty {
 
 	public void setKafkaPollInterval(long kafkaPollInterval) {
 		this.kafkaPollInterval = kafkaPollInterval;
+	}
+
+	public RingBuffer<ReadKafkaTopicEvent> getReadFromkafkaRingBuffer() {
+		return readFromkafkaRingBuffer;
+	}
+
+	public void setReadFromkafkaRingBuffer(
+			RingBuffer<ReadKafkaTopicEvent> readFromkafkaRingBuffer) {
+		this.readFromkafkaRingBuffer = readFromkafkaRingBuffer;
+	}
+
+	public RingBuffer<PublishKafkaTopicEvent> getPublishMessageRingBuffer() {
+		return publishMessageRingBuffer;
+	}
+
+	public void setPublishMessageRingBuffer(
+			RingBuffer<PublishKafkaTopicEvent> publishMessageRingBuffer) {
+		this.publishMessageRingBuffer = publishMessageRingBuffer;
 	}
 
 }
